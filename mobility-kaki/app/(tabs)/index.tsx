@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,8 +7,37 @@ import {
   ScrollView,
 } from "react-native";
 
+// ⚠️ Replace with your laptop's local IP (run `ipconfig getifaddr en0` to find it)
+// Must match the port your backend is running on (default 3001 in our setup)
+const API_BASE_URL = "http://192.168.1.70:3001";
+
 export default function App() {
   const [count, setCount] = React.useState(0);
+
+  // Backend connection state
+  const [backendStatus, setBackendStatus] = useState<
+    "loading" | "connected" | "error"
+  >("loading");
+  const [backendMessage, setBackendMessage] = useState("");
+
+  useEffect(() => {
+    checkBackend();
+  }, []);
+
+  const checkBackend = async () => {
+    setBackendStatus("loading");
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/health`);
+      if (!response.ok)
+        throw new Error(`Server responded with ${response.status}`);
+      const data = await response.json();
+      setBackendStatus("connected");
+      setBackendMessage(data.status ?? "ok");
+    } catch (err: any) {
+      setBackendStatus("error");
+      setBackendMessage(err.message ?? "Could not reach backend");
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -17,6 +46,28 @@ export default function App() {
       <Text style={styles.subtitle}>
         Test page — if you can see this, web rendering works!
       </Text>
+
+      {/* Backend connection card */}
+      <View style={styles.card}>
+        <Text style={styles.cardText}>Backend connection</Text>
+        <View style={styles.statusRow}>
+          <View
+            style={[
+              styles.statusDot,
+              backendStatus === "connected" && styles.statusDotConnected,
+              backendStatus === "error" && styles.statusDotError,
+            ]}
+          />
+          <Text style={styles.statusText}>
+            {backendStatus === "loading" && "Checking..."}
+            {backendStatus === "connected" && `Connected — "${backendMessage}"`}
+            {backendStatus === "error" && `Not reachable — ${backendMessage}`}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.buttonSecondary} onPress={checkBackend}>
+          <Text style={styles.buttonSecondaryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardText}>Tap counter: {count}</Text>
@@ -96,9 +147,44 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
+  buttonSecondary: {
+    borderWidth: 1,
+    borderColor: "#FF6B35",
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  buttonSecondaryText: {
+    color: "#FF6B35",
+    fontWeight: "600",
+    fontSize: 14,
+  },
   listItem: {
     fontSize: 15,
     color: "#444",
     marginBottom: 6,
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#CCC",
+    marginRight: 8,
+  },
+  statusDotConnected: {
+    backgroundColor: "#4CAF50",
+  },
+  statusDotError: {
+    backgroundColor: "#E53935",
+  },
+  statusText: {
+    fontSize: 14,
+    color: "#444",
+    flexShrink: 1,
   },
 });
